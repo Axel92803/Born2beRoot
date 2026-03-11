@@ -1,13 +1,22 @@
+*This project has been created as part of the 42 curriculum by itanvuia*
+
 # 🖥️ Born2beRoot
 
-**42 London** · System Administration · Rank 01
-
+> **System Administration**
+> 
 > *"Nobody ever administered a server into production by clicking 'Next' sixteen times."*
+> 
 > — Every greybeard sysadmin, at some point
 
+![42 School](https://img.shields.io/badge/42-000000?style=for-the-badge&logo=42&logoColor=white)
+![Grade](https://img.shields.io/badge/Grade-100%2F100-success?style=for-the-badge)
+[![Debian](https://img.shields.io/badge/Debian-A81D33?style=for-the-badge&logo=debian&logoColor=white)](https://www.debian.org/)
+[![VirtualBox](https://img.shields.io/badge/VirtualBox-183A61?style=for-the-badge&logo=virtualbox&logoColor=white)](https://www.virtualbox.org/)
+[![Linux](https://img.shields.io/badge/Linux-FCC624?style=for-the-badge&logo=linux&logoColor=black)](https://www.linux.org/)
+[![Shell](https://img.shields.io/badge/Shell_Script-737373?style=for-the-badge&logo=gnu-bash&logoColor=white)](https://www.gnu.org/software/bash/)
 ---
 
-## About this Project
+## 📖 About this Project
 
 Born2beRoot is the first serious encounter with system administration. The objective is to configure a **Debian** virtual machine from scratch under strict security constraints — no GUI, no training wheels. By the end of it you should be able to explain every running service, every open port, and every policy decision as confidently as you explain a pointer dereference.
 
@@ -18,25 +27,25 @@ This README doubles as an **evaluation preparation guide**. If you can walk thro
 
 ---
 
-## Table of Contents
-
-1. [Why Debian](#1-why-debian)
-2. [Virtual Machine Fundamentals](#2-virtual-machine-fundamentals)
-3. [Partitioning & LVM (Bonus Layout)](#3-partitioning--lvm-bonus-layout)
-4. [sudo Configuration](#4-sudo-configuration)
-5. [User & Group Management](#5-user--group-management)
-6. [Password Policy](#6-password-policy)
-7. [SSH Hardening](#7-ssh-hardening)
-8. [UFW Firewall](#8-ufw-firewall)
-9. [AppArmor](#9-apparmor)
-10. [The monitoring.sh Script](#10-the-monitoringsh-script)
-11. [Cron](#11-cron)
-12. [Evaluation Quick-Reference](#12-evaluation-quick-reference)
-13. [Submission](#13-submission)
-
+## 📑 Table of Contents  
+  
+- [🤔 Why Debian](#-why-debian)  
+- [💻 Virtual Machine Fundamentals](#-virtual-machine-fundamentals)  
+- [💾 Partitioning & LVM (Bonus Layout)](#-partitioning--lvm-bonus-layout)  
+- [🔐 sudo Configuration](#-sudo-configuration)  
+- [👥 User & Group Management](#-user--group-management)  
+- [🔑 Password Policy](#-password-policy)  
+- [🌐 SSH Hardening](#-ssh-hardening)  
+- [🧱 UFW Firewall](#-ufw-firewall)  
+- [🛡️ AppArmor](#️-apparmor)  
+- [📜 The monitoring.sh Script](#-the-monitoringsh-script)  
+- [⏰ Cron](#-cron)  
+- [✅ Evaluation Quick-Reference](#-evaluation-quick-reference)  
+- [📦 Submission](#-submission)  
+  
 ---
 
-## 1. Why Debian
+## 🤔 Why Debian
 
 The subject permits either **Debian** or **Rocky Linux**. I went with Debian. Here's the reasoning, and here's what your evaluator will want to hear:
 
@@ -49,7 +58,7 @@ Both are front-ends to `dpkg`. `apt` is the modern CLI tool (clean output, progr
 
 ---
 
-## 2. Virtual Machine Fundamentals
+## 💻 Virtual Machine Fundamentals
 
 A virtual machine is a software emulation of a physical computer. A **hypervisor** (in our case, VirtualBox or UTM) sits between the VM and the host hardware, allocating CPU cycles, memory, and I/O to each guest OS as though it were running on bare metal.
 
@@ -59,11 +68,11 @@ Why does this matter? Because your evaluator may ask you to explain *what* a VM 
 
 ---
 
-## 3. Partitioning & LVM (Bonus Layout)
+## 💾 Partitioning & LVM (Bonus Layout)
 
 This is the **bonus partitioning scheme**. The subject provides a reference diagram; the layout below matches it.
 
-### What is LVM?
+### 🔍 What is LVM?
 
 **Logical Volume Management** is an abstraction layer between your physical disks and the file systems the OS sees. It introduces three concepts:
 
@@ -73,11 +82,11 @@ This is the **bonus partitioning scheme**. The subject provides a reference diag
 
 The power of LVM is flexibility. You can resize volumes, add disks to a VG on the fly, and create snapshots — none of which are possible (or at least easy) with traditional MBR/GPT partitions.
 
-### What about encryption?
+### 🔒 What about encryption?
 
 The subject mandates **at least 2 encrypted partitions using LVM**. This is achieved via **LUKS** (Linux Unified Key Setup), which encrypts the physical volume before LVM sees it. At boot, the system asks for the passphrase, decrypts the PV, and then LVM assembles the volume group and logical volumes as normal.
 
-### Verifying your layout
+### 🔍 Verifying your layout
 
 ```bash
 lsblk
@@ -87,17 +96,17 @@ Your output should show the bonus structure: `sda` split into `sda1` (boot), `sd
 
 The key thing evaluators look for: **the LV names, mount points, and the fact that the volumes sit on top of an encrypted container**. If `lsblk` shows `crypt` in the type column, you're good.
 
-### Why separate partitions?
+### 🧠 Why separate partitions?
 
 This is a real-world best practice. Isolating `/var/log` prevents a log-flooding attack from filling your root filesystem. Separating `/home` means a full reinstall doesn't nuke user data. Putting `/tmp` on its own volume lets you mount it with `nosuid` and `noexec` flags. Each decision has a security or operational rationale.
 
 ---
 
-## 4. sudo Configuration
+## 🔐 sudo Configuration
 
 `sudo` ("superuser do") lets permitted users execute commands as root — or as another user — without sharing the root password. It's the gatekeeper between unprivileged and privileged execution.
 
-### Subject requirements and their rationale
+### 📋 Subject requirements and their rationale
 
 All sudo configuration lives in `/etc/sudoers` (edited via `visudo`) or in drop-in files under `/etc/sudoers.d/`.
 
@@ -110,7 +119,7 @@ All sudo configuration lives in `/etc/sudoers` (edited via `visudo`) or in drop-
 | TTY required | `Defaults requiretty` | Prevents sudo from being invoked by background daemons or scripts without a terminal — reduces attack surface |
 | Restricted PATH | `Defaults secure_path="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin"` | Prevents PATH injection attacks where a malicious binary in a user-controlled directory shadows a system command |
 
-### Verification
+### 🔍 Verification
 
 ```bash
 sudo visudo                           # check the file (read-only if unsure)
@@ -121,14 +130,14 @@ sudo ls                               # run something, then re-check the log
 
 ---
 
-## 5. User & Group Management
+## 👥 User & Group Management
 
 The subject requires:
 
 - A user with **your 42 login** as username
 - That user must belong to groups **user42** and **sudo**
 
-### Key commands
+### 📋 Key commands
 
 ```bash
 # Check existing groups for your user
@@ -154,11 +163,11 @@ The `-aG` flag in `usermod` is critical: `-a` means *append* (don't replace exis
 
 ---
 
-## 6. Password Policy
+## 🔑 Password Policy
 
 The password policy is split across two mechanisms: **login.defs** for age/expiry rules and **PAM** (specifically `pam_pwquality`) for complexity rules.
 
-### Age policy — `/etc/login.defs`
+### ⏳ Age policy — `/etc/login.defs`
 
 ```
 PASS_MAX_DAYS   30      # Password expires every 30 days
@@ -173,7 +182,7 @@ sudo chage -M 30 -m 2 -W 7 <username>
 sudo chage -l <username>              # verify
 ```
 
-### Complexity policy — `/etc/pam.d/common-password`
+### 🔒 Complexity policy — `/etc/pam.d/common-password`
 
 This is handled by `libpam-pwquality`. The relevant line:
 
@@ -196,16 +205,16 @@ After configuring these, **change all existing passwords** (root included) to co
 
 ---
 
-## 7. SSH Hardening
+## 🌐 SSH Hardening
 
 **SSH** (Secure Shell) provides encrypted remote access to the server. It replaces insecure protocols like Telnet and rlogin.
 
-### Subject requirements
+### 📋 Subject requirements
 
 1. SSH runs on **port 4242** only (not the default 22)
 2. **Root login via SSH is disabled**
 
-### Configuration — `/etc/ssh/sshd_config`
+### ⚙️ Configuration — `/etc/ssh/sshd_config`
 
 ```
 Port 4242
@@ -219,7 +228,7 @@ sudo systemctl restart ssh
 sudo systemctl status ssh              # confirm it's active on 4242
 ```
 
-### Verification during evaluation
+### 🔍 Verification during evaluation
 
 ```bash
 # From the HOST machine (not the VM):
@@ -231,22 +240,22 @@ ssh root@127.0.0.1 -p 4242            # should fail
 
 For this to work, you need to set up **port forwarding** in VirtualBox: host port 4242 → guest port 4242 (Settings → Network → Advanced → Port Forwarding).
 
-### Why change the port?
+### 🧠 Why change the port?
 
 Port 22 is the default SSH port. Every automated scanner on the internet hammers port 22 first. Changing it doesn't make SSH more secure cryptographically, but it massively reduces noise from brute-force bots. This is **security through obscurity** — not a primary defence, but a sensible layer. In a production environment, you'd combine this with key-based auth and fail2ban.
 
 ---
 
-## 8. UFW Firewall
+## 🧱 UFW Firewall
 
 **UFW** (Uncomplicated Firewall) is a front-end for `iptables`/`nftables`. It simplifies rule management for common use cases.
 
-### Subject requirements
+### 📋 Subject requirements
 
 - UFW must be active at boot
 - Only port **4242** is open
 
-### Key commands
+### ⚙️ Key commands
 
 ```bash
 sudo ufw status verbose                # check status and default policies
@@ -258,40 +267,44 @@ sudo ufw status numbered               # confirm it's listed
 sudo ufw delete <rule_number>          # remove it (do this for both v4 and v6 rules)
 ```
 
-### What's happening under the hood?
+### 🧠 What's happening under the hood?
 
 UFW translates your simple `allow/deny` rules into `iptables` chains (or `nft` rules on newer kernels). When a packet arrives at the network interface, the kernel walks these chains and decides whether to ACCEPT, DROP, or REJECT the packet. The default policy for UFW is to deny incoming and allow outgoing — a sane baseline for any server.
 
 ---
 
-## 9. AppArmor
+## 🛡️ AppArmor
 
 **AppArmor** is a Linux Security Module (LSM) that provides **Mandatory Access Control (MAC)**. Unlike traditional UNIX permissions (Discretionary Access Control — the user decides who can access their files), MAC is enforced by the kernel based on security policies, regardless of what the user wants.
 
 AppArmor works with **profiles** — each profile defines what a specific program is allowed to access (files, network, capabilities). Profiles can run in **enforce** mode (violations are blocked and logged) or **complain** mode (violations are logged but allowed).
 
-### Verification
+### 🔍 Verification
 
 ```bash
 sudo aa-status                         # list loaded profiles and their modes
 sudo systemctl status apparmor         # confirm it's running
 ```
 
-AppArmor must be running at startup. On Debian, it is enabled by default. If your evaluator asks the difference between AppArmor and SELinux: AppArmor uses **path-based** rules (it cares about file paths), while SELinux uses **label-based** rules (every file, process, and port gets a security label). SELinux is more granular but significantly harder to configure — hence why Rocky is the harder choice for this project.
+AppArmor must be running at startup. On Debian, it is enabled by default.
+
+### 🧠 AppArmor vs SELinux  
+
+If your evaluator asks the difference between AppArmor and SELinux: AppArmor uses **path-based** rules (it cares about file paths), while SELinux uses **label-based** rules (every file, process, and port gets a security label). SELinux is more granular but significantly harder to configure — hence why Rocky is the harder choice for this project.
 
 ---
 
-## 10. The monitoring.sh Script
+## 📜 The monitoring.sh Script
 
 The subject requires a bash script that broadcasts system information to all terminals every 10 minutes via `wall`.
 
-### Script location
+### 📂 Script location
 
 ```bash
 /usr/local/bin/monitoring.sh
 ```
 
-### What it displays
+### 📋 What it displays
 
 | Metric | How it's gathered |
 |---|---|
@@ -308,7 +321,7 @@ The subject requires a bash script that broadcasts system information to all ter
 | IP & MAC | `hostname -I` and `ip link show` |
 | Sudo commands | `journalctl _COMM=sudo \| grep COMMAND \| wc -l` |
 
-### Key evaluation questions about the script
+### 🧠 Key evaluation questions about the script
 
 **"How do you stop the script without modifying it?"**
 
@@ -330,11 +343,11 @@ sudo crontab -u root -e
 
 ---
 
-## 11. Cron
+## ⏰ Cron
 
 **Cron** is a time-based job scheduler. The cron daemon (`crond`) reads **crontab** files and executes commands at specified intervals.
 
-### Crontab syntax
+### 📋 Crontab syntax
 
 ```
 ┌───────────── minute (0 - 59)
@@ -348,7 +361,7 @@ sudo crontab -u root -e
 
 `*/10 * * * *` means "every 10 minutes, every hour, every day." The `*/n` syntax means "every nth interval."
 
-### Editing crontab
+### ⚙️ Editing crontab
 
 ```bash
 sudo crontab -u root -e               # edit root's crontab
@@ -357,11 +370,11 @@ sudo crontab -u root -l               # list root's crontab
 
 ---
 
-## 12. Evaluation Quick-Reference
+## ✅ Evaluation Quick-Reference
 
 This is your pre-defence checklist. Run through these commands in order before your evaluator arrives.
 
-### Preliminary checks
+### 🔍 Preliminary checks
 
 ```bash
 # Verify no graphical server is running
@@ -378,7 +391,7 @@ lsblk
 cat /etc/os-release                    # should show Debian
 ```
 
-### Service checks
+### ⚙️ Service checks
 
 ```bash
 sudo systemctl status ssh              # active, port 4242
@@ -386,7 +399,7 @@ sudo ufw status verbose                # active, only 4242 open
 sudo aa-status                         # AppArmor loaded with profiles in enforce mode
 ```
 
-### User & group checks
+### 👥 User & group checks
 
 ```bash
 id <your_login>                        # should show user42 and sudo groups
@@ -394,7 +407,7 @@ getent group sudo
 getent group user42
 ```
 
-### Password policy checks
+### 🔑 Password policy checks
 
 ```bash
 sudo chage -l <your_login>            # verify age policy
@@ -402,7 +415,7 @@ sudo chage -l root                     # root too
 cat /etc/pam.d/common-password         # verify pam_pwquality line
 ```
 
-### Sudo checks
+### 🔐 Sudo checks
 
 ```bash
 sudo visudo                            # review the rules (or cat /etc/sudoers.d/<file>)
@@ -410,7 +423,7 @@ ls /var/log/sudo/                      # log directory exists
 sudo ls                                # run something, then verify it was logged
 ```
 
-### Hostname modification (evaluator will ask)
+### 🏷️ Hostname modification (evaluator will ask)
 
 ```bash
 sudo hostnamectl set-hostname <new_hostname>
@@ -419,7 +432,7 @@ sudo reboot                            # confirm it persists
 # Then restore original hostname the same way
 ```
 
-### User creation (evaluator will ask)
+### 👤 User creation (evaluator will ask)
 
 ```bash
 sudo adduser <new_user>                # follow prompts, use a compliant password
@@ -428,7 +441,7 @@ sudo usermod -aG evaluating <new_user>
 getent group evaluating                # verify
 ```
 
-### UFW rule addition/removal (evaluator will ask)
+### 🧱 UFW rule addition/removal (evaluator will ask)
 
 ```bash
 sudo ufw allow 8080
@@ -437,7 +450,7 @@ sudo ufw delete <rule_number>          # delete both IPv4 and IPv6 entries
 sudo ufw status numbered               # confirm removal
 ```
 
-### SSH connection test
+### 🌐 SSH connection test
 
 ```bash
 # From host terminal:
@@ -445,7 +458,7 @@ ssh <your_login>@127.0.0.1 -p 4242    # should succeed
 ssh root@127.0.0.1 -p 4242            # should be denied
 ```
 
-### Monitoring script
+### 📜 Monitoring script
 
 ```bash
 cat /usr/local/bin/monitoring.sh       # be ready to explain every line
@@ -454,7 +467,7 @@ sudo crontab -u root -e               # show the cron job, change interval if as
 
 ---
 
-## 13. Submission
+## 📦 Submission
 
 The only file submitted to the Git repository is `signature.txt`, containing the SHA-1 hash of the `.vdi` (or `.qcow2`) virtual disk image.
 
@@ -470,11 +483,11 @@ shasum <your_vm_name>.vdi              # macOS
 
 Paste the resulting hash into `signature.txt` at the root of your repo.
 
-**Critical warning:** Any change to the VM after generating the signature will alter the hash. Either duplicate the VM before your evaluation or use VirtualBox's **snapshot/save state** feature so you can restore the exact state that matches your submitted signature.
+**⚠️ Critical warning:** Any change to the VM after generating the signature will alter the hash. Either duplicate the VM before your evaluation or use VirtualBox's **snapshot/save state** feature so you can restore the exact state that matches your submitted signature.
 
 ---
 
-## Final Notes
+## 🧠 Final Notes
 
 Born2beRoot isn't really about memorising commands. It's about understanding *why* each configuration exists. Every `Defaults` line in your sudoers file, every `pam_pwquality` parameter, every firewall rule — they all map to a real threat model. Your evaluator isn't checking whether you can type `sudo ufw status`. They're checking whether you understand what happens when you do, and what would happen if you hadn't configured it.
 
@@ -482,4 +495,25 @@ Know your system. Defend your choices.
 
 ---
 
-*Project by [itanvuia](https://github.com/Axel92803) · 42 London · 2026*
+## 🎓 42 School Evaluation
+
+**Grade:** N/A/100 ✅
+**Bonus:** [YES]  
+**Evaluation Date:** [N/A]
+
+## 📝 License
+
+This project is part of the 42 School curriculum. Feel free to reference this code for learning purposes, but please complete your own 42 projects independently to get the full educational benefit.
+
+
+**Author:** Alex Tanvuia (Ionut Tanvuia)
+
+**42 Login:** itanvuia
+
+**School:** 42 London
+
+**Project Completed:** [February 2026]
+
+[![42 Profile](https://img.shields.io/badge/42_Profile-itanvuia-000000?style=flat-square&logo=42)](https://profile.intra.42.fr/)
+
+*Part of my journey through 42 School's peer-learning curriculum. Check out my other projects on my [GitHub profile](https://github.com/Axel92803)!*
