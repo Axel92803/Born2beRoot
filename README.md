@@ -18,7 +18,7 @@
 
 ## 📖 About this Project
 
-Born2beRoot is the first serious encounter with system administration. The objective is to configure a **Debian** virtual machine from scratch under strict security constraints — no GUI, no training wheels. By the end of it you should be able to explain every running service, every open port, and every policy decision as confidently as you explain a pointer dereference.
+Born2beRoot is the first serious encounter with system administration. The objective is to configure a **Debian** virtual machine from scratch under strict security constraints, no GUI, no training wheels. By the end of it you should be able to explain every running service, every open port, and every policy decision as confidently as you explain a pointer dereference.
 
 This README doubles as an **evaluation preparation guide**. If you can walk through every section below without reaching for Google, you're ready.
 
@@ -49,12 +49,12 @@ This README doubles as an **evaluation preparation guide**. If you can walk thro
 
 The subject permits either **Debian** or **Rocky Linux**. I went with Debian. Here's the reasoning, and here's what your evaluator will want to hear:
 
-**Debian** is a community-driven distribution. It has no corporate parent dictating its roadmap. It prioritises stability above all — packages in the `stable` branch have been through `unstable` and `testing` before release, which means they've been battle-tested. Its package manager ecosystem (`dpkg`, `apt`, `aptitude`) is one of the most mature in the Linux world.
+**Debian** is a community-driven distribution. It has no corporate parent dictating its roadmap. It prioritises stability above all, packages in the `stable` branch have been through `unstable` and `testing` before release, which means they've been battle-tested. Its package manager ecosystem (`dpkg`, `apt`, `aptitude`) is one of the most mature in the Linux world.
 
 **Rocky Linux** is a downstream rebuild of Red Hat Enterprise Linux (RHEL), born after CentOS shifted to CentOS Stream. It uses `dnf`/`rpm` for package management and **SELinux** for mandatory access control instead of AppArmor. Setting it up for this project is significantly more complex (and KDump configuration is explicitly waived in the subject).
 
 **Evaluation question — apt vs aptitude:**
-Both are front-ends to `dpkg`. `apt` is the modern CLI tool (clean output, progress bars, simpler syntax). `aptitude` is an older, higher-level tool with a TUI (ncurses interface) and smarter dependency resolution — it can suggest multiple solutions when a dependency conflict arises, whereas `apt` will typically just refuse. In practice, `apt` is what you'll use 99% of the time on a modern Debian system. The subject asks you to know the difference, not to prefer one.
+Both are front-ends to `dpkg`. `apt` is the modern CLI tool (clean output, progress bars, simpler syntax). `aptitude` is an older, higher-level tool with a TUI (ncurses interface) and smarter dependency resolution. It can suggest multiple solutions when a dependency conflict arises, whereas `apt` will typically just refuse. In practice, `apt` is what you'll use 99% of the time on a modern Debian system. The subject asks you to know the difference, not to prefer one.
 
 ---
 
@@ -62,7 +62,7 @@ Both are front-ends to `dpkg`. `apt` is the modern CLI tool (clean output, progr
 
 A virtual machine is a software emulation of a physical computer. A **hypervisor** (in our case, VirtualBox or UTM) sits between the VM and the host hardware, allocating CPU cycles, memory, and I/O to each guest OS as though it were running on bare metal.
 
-**Type 1 hypervisors** (ESXi, Xen, Hyper-V) run directly on hardware — these are what you find in data centres. **Type 2 hypervisors** (VirtualBox, VMware Workstation) run on top of a host OS — these are what we use on our workstations.
+**Type 1 hypervisors** (ESXi, Xen, Hyper-V) run directly on hardware; these are what you find in data centres. **Type 2 hypervisors** (VirtualBox, VMware Workstation) run on top of a host OS; these are what we use on our workstations.
 
 Why does this matter? Because your evaluator may ask you to explain *what* a VM is and *why* we use one. The short answer: isolation, reproducibility, and the ability to snapshot an entire operating system state. If you break something, you roll back. You can't do that with bare metal without considerably more effort.
 
@@ -80,7 +80,7 @@ This is the **bonus partitioning scheme**. The subject provides a reference diag
 - **VG (Volume Group):** A pool of storage created from one or more PVs. Think of it as a virtual disk.
 - **LV (Logical Volume):** A carved-out chunk of a VG that you format and mount. Think of it as a virtual partition.
 
-The power of LVM is flexibility. You can resize volumes, add disks to a VG on the fly, and create snapshots — none of which are possible (or at least easy) with traditional MBR/GPT partitions.
+The power of LVM is flexibility. You can resize volumes, add disks to a VG on the fly, and create snapshots, none of which are possible (or at least easy) with traditional MBR/GPT partitions.
 
 ### 🔒 What about encryption?
 
@@ -113,10 +113,10 @@ All sudo configuration lives in `/etc/sudoers` (edited via `visudo`) or in drop-
 | Requirement | Implementation | Why |
 |---|---|---|
 | Max 3 auth attempts | `Defaults passwd_tries=3` | Limits brute-force attempts in an interactive session |
-| Custom error message | `Defaults badpass_message="<your message>"` | Just a subject requirement — in production you'd keep defaults |
+| Custom error message | `Defaults badpass_message="<your message>"` | Just a subject requirement, in production you'd keep defaults |
 | Log inputs and outputs | `Defaults log_input, log_output` | Full audit trail of what was run and what it produced |
 | Log directory | `Defaults iolog_dir="/var/log/sudo"` | Centralises sudo audit logs |
-| TTY required | `Defaults requiretty` | Prevents sudo from being invoked by background daemons or scripts without a terminal — reduces attack surface |
+| TTY required | `Defaults requiretty` | Prevents sudo from being invoked by background daemons or scripts without a terminal, reduces attack surface |
 | Restricted PATH | `Defaults secure_path="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin"` | Prevents PATH injection attacks where a malicious binary in a user-controlled directory shadows a system command |
 
 ### 🔍 Verification
@@ -159,7 +159,7 @@ sudo usermod -aG evaluating <evaluator_username>
 getent group evaluating
 ```
 
-The `-aG` flag in `usermod` is critical: `-a` means *append* (don't replace existing groups), `-G` specifies the supplementary group. Forgetting `-a` will remove the user from all other supplementary groups — a classic mistake.
+The `-aG` flag in `usermod` is critical: `-a` means *append* (don't replace existing groups), `-G` specifies the supplementary group. Forgetting `-a` will remove the user from all other supplementary groups
 
 ---
 
@@ -242,7 +242,7 @@ For this to work, you need to set up **port forwarding** in VirtualBox: host por
 
 ### 🧠 Why change the port?
 
-Port 22 is the default SSH port. Every automated scanner on the internet hammers port 22 first. Changing it doesn't make SSH more secure cryptographically, but it massively reduces noise from brute-force bots. This is **security through obscurity** — not a primary defence, but a sensible layer. In a production environment, you'd combine this with key-based auth and fail2ban.
+Port 22 is the default SSH port. Every automated scanner on the internet hammers port 22 first. Changing it doesn't make SSH more secure cryptographically, but it massively reduces noise from brute-force bots. This is **security through obscurity** and not a primary defence, but a sensible layer.
 
 ---
 
@@ -269,15 +269,15 @@ sudo ufw delete <rule_number>          # remove it (do this for both v4 and v6 r
 
 ### 🧠 What's happening under the hood?
 
-UFW translates your simple `allow/deny` rules into `iptables` chains (or `nft` rules on newer kernels). When a packet arrives at the network interface, the kernel walks these chains and decides whether to ACCEPT, DROP, or REJECT the packet. The default policy for UFW is to deny incoming and allow outgoing — a sane baseline for any server.
+UFW translates your simple `allow/deny` rules into `iptables` chains (or `nft` rules on newer kernels). When a packet arrives at the network interface, the kernel walks these chains and decides whether to ACCEPT, DROP, or REJECT the packet. The default policy for UFW is to deny incoming and allow outgoing, a sane baseline for any server.
 
 ---
 
 ## 🛡️ AppArmor
 
-**AppArmor** is a Linux Security Module (LSM) that provides **Mandatory Access Control (MAC)**. Unlike traditional UNIX permissions (Discretionary Access Control — the user decides who can access their files), MAC is enforced by the kernel based on security policies, regardless of what the user wants.
+**AppArmor** is a Linux Security Module (LSM) that provides **Mandatory Access Control (MAC)**. Unlike traditional UNIX permissions (Discretionary Access Control the user decides who can access their files), MAC is enforced by the kernel based on security policies, regardless of what the user wants.
 
-AppArmor works with **profiles** — each profile defines what a specific program is allowed to access (files, network, capabilities). Profiles can run in **enforce** mode (violations are blocked and logged) or **complain** mode (violations are logged but allowed).
+AppArmor works with **profiles** — each profile defnes what a specific program is allowed to access (files, network, capabilities). Profiles can run in **enforce** mode (violations are blocked and logged) or **complain** mode (violations are logged but allowed).
 
 ### 🔍 Verification
 
@@ -489,7 +489,7 @@ Paste the resulting hash into `signature.txt` at the root of your repo.
 
 ## 🧠 Final Notes
 
-Born2beRoot isn't really about memorising commands. It's about understanding *why* each configuration exists. Every `Defaults` line in your sudoers file, every `pam_pwquality` parameter, every firewall rule — they all map to a real threat model. Your evaluator isn't checking whether you can type `sudo ufw status`. They're checking whether you understand what happens when you do, and what would happen if you hadn't configured it.
+Born2beRoot isn't really about memorising commands. It's about understanding *why* each configuration exists. Every `Defaults` line in your sudoers file, every `pam_pwquality` parameter, every firewall rule, they all map to a real threat model. Your evaluator isn't checking whether you can type `sudo ufw status`. They're checking whether you understand what happens when you do, and what would happen if you hadn't configured it.
 
 Know your system. Defend your choices.
 
@@ -503,7 +503,7 @@ Know your system. Defend your choices.
 
 ## 📝 License
 
-This project is part of the 42 School curriculum. Feel free to reference this code for learning purposes, but please complete your own 42 projects independently to get the full educational benefit.
+This project is part of the 42 School curriculum. Feel free to reference this guide for learning purposes, but please complete your own 42 projects independently to get the full educational benefit.
 
 
 **Author:** Alex Tanvuia (Ionut Tanvuia)
