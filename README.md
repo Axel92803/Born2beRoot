@@ -304,6 +304,131 @@ The subject requires a bash script that broadcasts system information to all ter
 /usr/local/bin/monitoring.sh
 ```
 
+## Monitoring Script Breakdown
+
+The monitoring script (`monitoring.sh`) is executed every 10 minutes by a root cron job and broadcasts system information to all logged-in terminals using `wall`.
+
+### Architecture
+
+```bash
+arch=$(uname -a)
+```
+
+`uname -a` prints all available system identification info: kernel name, hostname, kernel release, kernel version, machine hardware, processor type, hardware platform, and operating system. This single command gives a complete snapshot of the system identity.
+
+### CPU Physical
+
+```bash
+cpuf=$(grep "physical id" /proc/cpuinfo | wc -l)
+```
+
+`/proc/cpuinfo` is a virtual file maintained by the kernel that describes each CPU core the system sees. Each entry has a `physical id` field identifying which physical chip the core belongs to. Counting these lines gives the number of physical CPU sockets. On a VirtualBox VM this will typically be `0` (since VirtualBox emulates a single socket starting at id `0`, and `grep` still matches that one line, though the count may vary depending on VM configuration).
+
+### CPU Virtual
+
+```bash
+cpuv=$(grep "processor" /proc/cpuinfo | wc -l)
+```
+
+Every logical processing unit (vCPU) gets its own `processor` entry in `/proc/cpuinfo`. This includes all cores and hyperthreads. The count here reflects how many vCPUs were allocated to the VM in VirtualBox settings.
+
+### RAM
+
+```bash
+ram_total=$(free --mega | awk '$1 == "Mem:" {print $2}')
+ram_use=$(free --mega | awk '$1 == "Mem:" {print $3}')
+ram_percent=$(free --mega | awk '$1 == "Mem:" {printf("%.2f"), $3/$2*100}')
+```
+
+`free --mega` displays memory statistics in megabytes (base 10, i.e. 1 MB = 1,000,000 bytes). The `awk` filter targets the `Mem:` row specifically:
+- `$2` is total physical RAM
+- `$3` is currently used RAM (excluding buffers/cache)
+- The percentage is calculated inline by dividing used by total and multiplying by 100, formatted to two decimal places
+
+### Disk Usage
+
+```bash
+disk_total=$(df -m | grep "/dev/" | grep -v "/boot" | awk '{disk_t += $2} END {printf ("%.1fGb\n"), disk_t/1024}')
+disk_use=$(df -m | grep "/dev/" | grep -v "/boot" | awk '{disk_u += $3} END {print disk_u}')
+disk_percent=$(df -m | grep "/dev/" | grep -v "/boot" | awk '{disk_u += $3} {disk_t+= $2} END {printf("%d"), disk_u/disk_t*100}')
+```
+
+`df -m` reports filesystem disk space in megabytes. The pipeline filters for real device-backed filesystems (`/dev/`) while excluding the boot partition (`/boot`), since the subject is only interested in main storage.
+
+- `disk_total` accumulates the total size (`$2`) of all matching partitions and converts from MB to GB
+- `disk_use` accumulates the used space (`$3`) across all matching partitions, left in MB
+- `disk_percent` calculates the overall usage percentage by summing both used and total across all partitions before dividing, this gives a weighted average rather than averaging percentages, which would be misleading if partitions are different sizes
+
+### CPU Load
+
+```bash
+cpul=$(vmstat 1 2 | tail -1 | awk '{printf $15}')
+cpu_op=$(expr 100 - $cpul)
+cpu_fin=$(printf "%.1f" $cpu_op)
+```
+
+`vmstat 1 2` takes two samples one second apart. The first sample is a summary since boot (less useful), so `tail -1` grabs only the second, which reflects current activity. Column 15 (`$15`) is the `id` (idle) percentage — how much of the CPU is doing nothing. Subtracting from 100 gives the actual load. The result is formatted to one decimal place.
+
+### Last Boot
+
+```bash
+lb=$(who -b | awk '$1 == "system" {print $3 " " $4}')
+```
+
+`who -b` prints the time of the last system boot. The output looks like `system boot 2026-03-12 10:10`, so awk filters for the line starting with `system` and extracts the date (`$3`) and time (`$4`).
+
+### LVM Use
+
+```bash
+lvmu=$(if [ $(lsblk | grep "lvm" | wc -l) -gt 0 ]; then echo yes; else echo no; fi)
+```
+
+`lsblk` lists all block devices and their types. If any device has type `lvm` (Logical Volume Manager), the count will be greater than zero and the script prints `yes`. LVM is a storage abstraction layer that allows resizing, snapshotting, and flexible management of disk partitions
+
+### TCP Connections
+
+```bash
+tcpc=$(ss -ta | grep ESTAB | wc -l)
+```
+
+`ss -ta` lists all TCP sockets (`-t` for TCP, `-a` for all states). Filtering for `ESTAB` counts only established connections,these are active, two-way communication channels between the VM and other hosts. This excludes sockets in listening, waiting, or closing states.
+
+### User Log
+
+```bash
+ulog=$(users | wc -w)
+```
+
+`users` prints a space-separated list of currently logged-in usernames (one entry per session, so the same user logged in twice appears twice). `wc -w` counts the words, giving the total number of active login sessions.
+
+### Network
+
+```bash
+ip=$(hostname -I)
+mac=$(ip link | grep "link/ether" | awk '{print $2}')
+```
+
+`hostname -I` prints all non-loopback IP addresses assigned to the machine. `ip link` lists network interfaces with their properties; `link/ether` lines contain the MAC (Media Access Control) address, which is the unique hardware identifier burned into the network adapter. The MAC address is fixed and identifies the physical device, while the IP address is assigned by the network and can change.
+
+### Sudo Commands
+
+```bash
+cmnd=$(journalctl _COMM=sudo | grep COMMAND | wc -l)
+```
+
+`journalctl` queries the systemd journal (the centralised system log). `_COMM=sudo` filters for entries generated by the `sudo` binary, and `grep COMMAND` narrows to lines that record an actual command execution (as opposed to authentication attempts or session openings). This gives a count of how many commands have been run with elevated privileges since the journal began recording.
+
+### Broadcasting
+
+```bash
+wall "Architecture: $arch
+    CPU physical: $cpuf
+    ..."
+```
+
+`wall` (write all) sends a message to every terminal listed in `/var/run/utmp`. This includes the VM console (tty) and any active SSH sessions (pts). The cron daemon executes this script every 10 minutes as root, ensuring all logged-in users see the system status regardless of which terminal they're connected through.
+
+
 ### 📋 What it displays
 
 | Metric | How it's gathered |
@@ -367,6 +492,43 @@ sudo crontab -u root -e
 sudo crontab -u root -e               # edit root's crontab
 sudo crontab -u root -l               # list root's crontab
 ```
+
+---
+
+## SSH `wall` Broadcast Fix
+ 
+By default, the monitoring script's `wall` broadcast may not appear in SSH sessions. This happens because the `/var/run/utmp` file (which tracks active terminal sessions) may not exist on the system. Without it, `wall` has no way to discover which terminals are active and skips them.
+ 
+### Diagnosing the Issue
+ 
+```bash
+# Check if your SSH session is registered
+who
+ 
+# If your session doesn't appear, check for the utmp file
+ls -l /var/run/utmp
+```
+ 
+### Solution
+ 
+Create the missing utmp file with the correct ownership and permissions:
+ 
+```bash
+sudo touch /var/run/utmp
+```
+Creates the empty utmp file. This is the database that login-tracking tools (`who`, `w`, `wall`, `last`) read from to determine which users are logged in and on which terminals. Without this file, none of these tools can function.
+ 
+```bash
+sudo chmod 664 /var/run/utmp
+```
+Sets read/write for the owner (`root`) and the group (`utmp`), and read-only for everyone else. The group write permission is critical, it allows PAM session modules and login utilities (which run as members of the `utmp` group) to register and deregister terminal sessions when users log in and out.
+ 
+```bash
+sudo chown root:utmp /var/run/utmp
+```
+Assigns ownership to `root` with the `utmp` group. This is the standard ownership on Debian systems. The `utmp` group exists specifically so that session-tracking processes can write to this file without needing root privileges.
+ 
+After creating the file, disconnect and reconnect the SSH session. Verify with `who` that the session now appears, and the next `wall` broadcast from the monitoring cron job should be visible in both the VM console and the SSH terminal.
 
 ---
 
