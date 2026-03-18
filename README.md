@@ -246,7 +246,7 @@ Port 22 is the default SSH port. Every automated scanner on the internet hammers
 
 ---
 
-## 🧱 UFW Firewall
+## 🧱 UFW Firewall — UFW vs firewalld
 
 **UFW** (Uncomplicated Firewall) is a front-end for `iptables`/`nftables`. It simplifies rule management for common use cases.
 
@@ -269,15 +269,31 @@ sudo ufw delete <rule_number>          # remove it (do this for both v4 and v6 r
 
 ### 🧠 What's happening under the hood?
 
-UFW translates your simple `allow/deny` rules into `iptables` chains (or `nft` rules on newer kernels). When a packet arrives at the network interface, the kernel walks these chains and decides whether to ACCEPT, DROP, or REJECT the packet. The default policy for UFW is to deny incoming and allow outgoing, a sane baseline for any server.
+UFW translates your simple `allow/deny` rules into `iptables` chains (or `nft` rules on newer kernels). When a packet arrives at the network interface, the kernel walks these chains and decides whether to ACCEPT, DROP, or REJECT the packet. The default policy for UFW is to **deny incoming** and **allow outgoing** — a sane baseline for any server.
+
+### ⚖️ UFW vs firewalld
+
+| | **UFW** | **firewalld** |
+|---|---|---|
+| **Used on** | Debian, Ubuntu | Rocky, Fedora, RHEL |
+| **Backend** | iptables / nftables | nftables (iptables legacy fallback) |
+| **Model** | Simple allow/deny rules per port/service | Zone-based — interfaces are assigned to zones with different trust levels |
+| **Complexity** | Very low — ideal for single-purpose servers | Higher — powerful for multi-interface setups with different trust boundaries |
+| **Runtime changes** | Requires `ufw reload` for some changes | Supports runtime vs permanent rules (apply without restart) |
+| **Config style** | CLI commands → flat rule files | CLI (`firewall-cmd`) or XML zone files |
+
+I used **UFW** because the subject mandates it for Debian. firewalld's zone model is more powerful but overkill for a single-port server.
 
 ---
 
-## 🛡️ AppArmor
+## 🛡️ AppArmor — AppArmor vs SELinux
 
-**AppArmor** is a Linux Security Module (LSM) that provides **Mandatory Access Control (MAC)**. Unlike traditional UNIX permissions (Discretionary Access Control the user decides who can access their files), MAC is enforced by the kernel based on security policies, regardless of what the user wants.
+**AppArmor** is a Linux Security Module (LSM) that provides **Mandatory Access Control (MAC)**. Unlike traditional UNIX permissions (Discretionary Access Control — the user decides who can access their files), MAC is enforced by the kernel based on security policies, regardless of what the user wants.
 
-AppArmor works with **profiles** — each profile defnes what a specific program is allowed to access (files, network, capabilities). Profiles can run in **enforce** mode (violations are blocked and logged) or **complain** mode (violations are logged but allowed).
+AppArmor works with **profiles** — each profile defines what a specific program is allowed to access (files, network, capabilities). Profiles can run in:
+
+- **Enforce mode** — violations are blocked and logged
+- **Complain mode** — violations are logged but allowed
 
 ### 🔍 Verification
 
@@ -286,11 +302,21 @@ sudo aa-status                         # list loaded profiles and their modes
 sudo systemctl status apparmor         # confirm it's running
 ```
 
-AppArmor must be running at startup. On Debian, it is enabled by default.
+AppArmor must be running at startup. On Debian, it's enabled by default.
 
-### 🧠 AppArmor vs SELinux  
+### ⚖️ AppArmor vs SELinux
 
-If your evaluator asks the difference between AppArmor and SELinux: AppArmor uses **path-based** rules (it cares about file paths), while SELinux uses **label-based** rules (every file, process, and port gets a security label). SELinux is more granular but significantly harder to configure — hence why Rocky is the harder choice for this project.
+| | **AppArmor** | **SELinux** |
+|---|---|---|
+| **Used on** | Debian, Ubuntu, SUSE | Rocky, Fedora, RHEL, CentOS |
+| **Model** | Path-based — rules reference file paths | Label-based — every file, process, and port gets a security context label |
+| **Granularity** | Per-application profiles | System-wide policy covering all processes |
+| **Learning curve** | Lower — profiles are human-readable and easy to write | Steep — requires understanding of type enforcement, roles, and booleans |
+| **Default behaviour** | Unconfined processes are unrestricted | All processes are confined by default under the targeted policy |
+| **Profile creation** | `aa-genprof` / `aa-logprof` to generate from observed behaviour | `audit2allow` to generate rules from denial logs |
+| **Flexibility** | Simpler but less granular | Extremely granular — the gold standard for high-security environments |
+
+I used **AppArmor** because it's the default MAC system on Debian and the subject requires it. SELinux offers finer-grained control but is significantly harder to configure and debug — it's the reason the subject warns that Rocky setup is complex.
 
 ---
 
