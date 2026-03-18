@@ -29,8 +29,8 @@ This README doubles as an **evaluation preparation guide**. If you can walk thro
 
 ## 📑 Table of Contents  
   
-- [🤔 Why Debian](#-why-debian)  
-- [💻 Virtual Machine Fundamentals](#-virtual-machine-fundamentals)  
+- [🤔 Why Debian](#-why-debian-debian-vs-rocky-linux)  
+- [💻 Virtual Machine Fundamentals](#-virtual-machine-fundamentals-virtualbox-vs-utm)  
 - [💾 Partitioning & LVM (Bonus Layout)](#-partitioning--lvm-bonus-layout)  
 - [🔐 sudo Configuration](#-sudo-configuration)  
 - [👥 User & Group Management](#-user--group-management)  
