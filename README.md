@@ -45,7 +45,89 @@ This README doubles as an **evaluation preparation guide**. If you can walk thro
   
 ---
 
-## 🤔 Why Debian
+## 📖 Description
+
+Born2beRoot is a **system administration** project from the 42 curriculum. The objective is to configure a **Debian** virtual machine from scratch under strict security constraints, no GUI, no training wheels. By the end of it you should be able to explain every running service, every open port, and every policy decision as confidently as you explain a pointer dereference.
+
+This README doubles as an **evaluation preparation guide**. If you can walk through every section below without reaching for Google, you're ready.
+
+**OS chosen:** Debian (latest stable)
+**Hypervisor:** VirtualBox
+**Bonus completed:** Partitioning only (LVM encrypted layout matching the bonus schema)
+
+### 🏗️ Main design choices
+
+- **Partitioning:** Bonus-level encrypted LVM layout with separate logical volumes for `/`, `/home`, `/var`, `/srv`, `/tmp`, `/var/log`, and `swap` — each isolated to limit blast radius of disk-filling attacks and to enable independent resizing
+- **Security policies:** PAM-based password complexity via `pam_pwquality`, 30-day expiry with 2-day minimum change interval, sudo limited to 3 attempts with full I/O logging
+- **User management:** Non-root user in `user42` and `sudo` groups, root SSH login disabled
+- **Services:** SSH on port 4242, UFW firewall allowing only port 4242, AppArmor in enforce mode
+
+The four comparisons required by the subject are covered in their respective sections below: Debian vs Rocky Linux, VirtualBox vs UTM, UFW vs firewalld, and AppArmor vs SELinux.
+
+---
+
+## 🔧 Instructions
+
+### Prerequisites
+
+- **VirtualBox** (or UTM if VirtualBox is unavailable) installed on your host machine
+- A **Debian ISO** — latest stable release, downloaded from [debian.org](https://www.debian.org/distrib/)
+
+### Installation
+
+1. Create a new VM in VirtualBox (no GUI server — X.org, Wayland, etc. are forbidden)
+2. Allocate at least 1 CPU, 1 GB RAM, and a VDI disk sized to accommodate the bonus partition layout
+3. Boot from the Debian ISO and follow the guided installer, selecting **encrypted LVM** partitioning when prompted
+4. After installation, configure all mandatory services (SSH, UFW, AppArmor, sudo, password policy, cron) as documented in the sections below
+
+### Running the VM
+
+```bash
+# Start the VM from VirtualBox GUI or headless:
+VBoxManage startvm "Born2beRoot" --type headless
+
+# Connect via SSH from the host:
+ssh <username>@127.0.0.1 -p 4242
+```
+
+Port forwarding must be configured in VirtualBox: host port 4242 → guest port 4242 (Settings → Network → Advanced → Port Forwarding).
+
+### Verifying the setup
+
+```bash
+# OS and kernel
+cat /etc/os-release
+
+# Partitions
+lsblk
+
+# Services
+sudo systemctl status ssh
+sudo ufw status verbose
+sudo aa-status
+```
+
+---
+
+## 📚 Resources
+
+### References
+
+- [Debian Administrator's Handbook](https://www.debian.org/doc/manuals/debian-handbook/) — comprehensive guide to Debian system administration
+- [ArchWiki — LVM](https://wiki.archlinux.org/title/LVM) — one of the best LVM references regardless of distro
+- [ArchWiki — dm-crypt / LUKS](https://wiki.archlinux.org/title/Dm-crypt) — in-depth encryption documentation
+- [Ubuntu Server Guide — UFW](https://ubuntu.com/server/docs/firewalls) — practical UFW usage and examples
+- [Debian Wiki — AppArmor](https://wiki.debian.org/AppArmor) — Debian-specific AppArmor setup and profile management
+- [man sudoers](https://www.sudo.ws/docs/man/sudoers.man/) — the authoritative reference for sudo configuration
+- [CronGuru](https://crontab.guru/) — interactive crontab expression editor
+
+### 🤖 AI usage
+
+`TODO: Fill in how AI was used (or not) for this project.`
+
+---
+
+## 🤔 Why Debian — Debian vs Rocky Linux
 
 The subject permits either **Debian** or **Rocky Linux**. I went with Debian. Here's the reasoning, and here's what your evaluator will want to hear:
 
@@ -53,18 +135,44 @@ The subject permits either **Debian** or **Rocky Linux**. I went with Debian. He
 
 **Rocky Linux** is a downstream rebuild of Red Hat Enterprise Linux (RHEL), born after CentOS shifted to CentOS Stream. It uses `dnf`/`rpm` for package management and **SELinux** for mandatory access control instead of AppArmor. Setting it up for this project is significantly more complex (and KDump configuration is explicitly waived in the subject).
 
+### ⚖️ Debian vs Rocky Linux
+
+| | **Debian** | **Rocky Linux** |
+|---|---|---|
+| **Governance** | Community-driven (Debian Project) | Community enterprise rebuild of RHEL |
+| **Package manager** | `dpkg` / `apt` / `aptitude` | `rpm` / `dnf` |
+| **MAC system** | AppArmor (path-based) | SELinux (label-based) |
+| **Firewall** | UFW (iptables front-end) | firewalld (zone-based) |
+| **Release model** | Stable / Testing / Unstable tiers | Point releases tracking RHEL |
+| **Target audience** | General-purpose, universally popular | Enterprise / production servers |
+| **Complexity for B2bR** | Lower — recommended by the subject | Higher — SELinux & firewalld config |
+
 **Evaluation question — apt vs aptitude:**
 Both are front-ends to `dpkg`. `apt` is the modern CLI tool (clean output, progress bars, simpler syntax). `aptitude` is an older, higher-level tool with a TUI (ncurses interface) and smarter dependency resolution. It can suggest multiple solutions when a dependency conflict arises, whereas `apt` will typically just refuse. In practice, `apt` is what you'll use 99% of the time on a modern Debian system. The subject asks you to know the difference, not to prefer one.
 
 ---
 
-## 💻 Virtual Machine Fundamentals
+## 💻 Virtual Machine Fundamentals — VirtualBox vs UTM
 
 A virtual machine is a software emulation of a physical computer. A **hypervisor** (in our case, VirtualBox or UTM) sits between the VM and the host hardware, allocating CPU cycles, memory, and I/O to each guest OS as though it were running on bare metal.
 
 **Type 1 hypervisors** (ESXi, Xen, Hyper-V) run directly on hardware; these are what you find in data centres. **Type 2 hypervisors** (VirtualBox, VMware Workstation) run on top of a host OS; these are what we use on our workstations.
 
 Why does this matter? Because your evaluator may ask you to explain *what* a VM is and *why* we use one. The short answer: isolation, reproducibility, and the ability to snapshot an entire operating system state. If you break something, you roll back. You can't do that with bare metal without considerably more effort.
+
+### ⚖️ VirtualBox vs UTM
+
+| | **VirtualBox** | **UTM** |
+|---|---|---|
+| **Platform** | Cross-platform (Windows, macOS Intel, Linux) | macOS only (native Apple Silicon support) |
+| **Hypervisor type** | Type 2 (runs on host OS) | Type 2 wrapper around Apple's Hypervisor.framework / QEMU |
+| **Architecture** | x86/x86_64 virtualisation | ARM native + x86 emulation via QEMU |
+| **Performance** | Near-native on x86 hardware | Near-native on ARM; slower for x86 emulation |
+| **Disk format** | `.vdi` | `.qcow2` |
+| **Snapshot support** | Built-in snapshot manager | Built-in snapshot/save state |
+| **Use case for B2bR** | Default choice — subject assumes VirtualBox | Alternative for Apple Silicon Macs that can't run VirtualBox |
+
+I used **VirtualBox** because it's the default specified by the subject and I'm working on x86 hardware.
 
 ---
 
@@ -104,7 +212,7 @@ This is a real-world best practice. Isolating `/var/log` prevents a log-flooding
 
 ## 🔐 sudo Configuration
 
-`sudo` ("superuser do") lets permitted users execute commands as root — or as another user — without sharing the root password. It's the gatekeeper between unprivileged and privileged execution.
+`sudo` ("superuser do") lets permitted users execute commands as root (or as another user) without sharing the root password. It's the gatekeeper between unprivileged and privileged execution.
 
 ### 📋 Subject requirements and their rationale
 
@@ -393,7 +501,7 @@ cpu_op=$(expr 100 - $cpul)
 cpu_fin=$(printf "%.1f" $cpu_op)
 ```
 
-`vmstat 1 2` takes two samples one second apart. The first sample is a summary since boot (less useful), so `tail -1` grabs only the second, which reflects current activity. Column 15 (`$15`) is the `id` (idle) percentage — how much of the CPU is doing nothing. Subtracting from 100 gives the actual load. The result is formatted to one decimal place.
+`vmstat 1 2` takes two samples one second apart. The first sample is a summary since boot (less useful), so `tail -1` grabs only the second, which reflects current activity. Column 15 (`$15`) is the `id` (idle) percentage how much of the CPU is doing nothing. Subtracting from 100 gives the actual load. The result is formatted to one decimal place.
 
 ### Last Boot
 
@@ -657,7 +765,7 @@ sudo crontab -u root -e               # show the cron job, change interval if as
 
 ## 📦 Submission
 
-The only file submitted to the Git repository is `signature.txt`, containing the SHA-1 hash of the `.vdi` (or `.qcow2`) virtual disk image.
+The files submitted to the Git repository are `README.md` and `signature.txt`, the latter containing the **SHA-1 hash** of the `.vdi` (or `.qcow2`) virtual disk image.
 
 ```bash
 # On the HOST machine, navigate to the VM storage directory:
@@ -667,11 +775,16 @@ The only file submitted to the Git repository is `signature.txt`, containing the
 
 sha1sum <your_vm_name>.vdi             # Linux
 shasum <your_vm_name>.vdi              # macOS
+certUtil -hashfile <your_vm_name>.vdi sha1  # Windows
 ```
 
 Paste the resulting hash into `signature.txt` at the root of your repo.
 
-**⚠️ Critical warning:** Any change to the VM after generating the signature will alter the hash. Either duplicate the VM before your evaluation or use VirtualBox's **snapshot/save state** feature so you can restore the exact state that matches your submitted signature.
+### ⚠️ Critical warnings
+
+- Any change to the VM after generating the signature **will alter the hash**. Either duplicate the VM disk file or use VirtualBox's snapshot feature so you can restore the exact state that matches your submitted signature.
+- **No snapshots may exist at the beginning of each evaluation.** A snapshot dedicated to the defence will be created and deleted at the end. Test the snapshot workflow before submitting.
+- The VM itself must **never** be included in the Git repository.
 
 ---
 
