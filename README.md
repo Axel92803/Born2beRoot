@@ -121,10 +121,6 @@ sudo aa-status
 - [man sudoers](https://www.sudo.ws/docs/man/sudoers.man/) — the authoritative reference for sudo configuration
 - [CronGuru](https://crontab.guru/) — interactive crontab expression editor
 
-### 🤖 AI usage
-
-`TODO: Fill in how AI was used (or not) for this project.`
-
 ---
 
 ## 🤔 Why Debian — Debian vs Rocky Linux
